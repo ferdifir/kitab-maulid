@@ -8,6 +8,11 @@
         android:id="@+id/previous"
         android:title="@string/previous"/>
     <item
+        android:id="@+id/prayer_alarm"
+        android:icon="@drawable/ic_alarm"
+        app:showAsAction="always"
+        android:title="@string/alarm"/>
+    <item
         android:id="@+id/share"
         android:icon="@drawable/ic_action_share"
         app:showAsAction="always"

@@ -393,6 +393,9 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback,
             intent.putExtra("app_uid", getApplicationInfo().uid);
             intent.putExtra("android.provider.extra.APP_PACKAGE", getPackageName());
             startActivity(intent);
+        } else if (item.getItemId() == R.id.prayer_alarm) {
+            Intent intent = new Intent(this, PrayerActivity.class);
+            startActivity(intent);
         }
         return super.onOptionsItemSelected(item);
     }

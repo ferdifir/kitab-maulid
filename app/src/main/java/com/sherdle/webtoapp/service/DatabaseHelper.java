@@ -7,6 +7,11 @@ import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
+
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "prayer_times_db";
@@ -73,9 +78,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         Cursor cursor = null;
 
         try {
-            String query = "SELECT COUNT(*) FROM" + TABLE_NAME;
-            cursor = db.rawQuery(query, null);
-            cursor.
+            // Dapatkan bulan saat ini
+            Calendar calendar = Calendar.getInstance();
+            int currentMonth = calendar.get(Calendar.MONTH) + 1; // Perhatikan: January dimulai dari 0
+
+            // Format bulan saat ini dalam format MM
+            SimpleDateFormat monthFormat = new SimpleDateFormat("MM", Locale.getDefault());
+            String currentMonthFormatted = monthFormat.format(new Date());
+
+            // Lakukan query untuk mendapatkan jumlah data dengan bulan yang sama
+            String query = "SELECT COUNT(*) FROM " + TABLE_NAME +
+                    " WHERE strftime('%m', " + COLUMN_DATE + ") = ?";
+            cursor = db.rawQuery(query, new String[]{currentMonthFormatted});
+
             if (cursor.moveToFirst()) {
                 int count = cursor.getInt(0);
                 return count > 0;

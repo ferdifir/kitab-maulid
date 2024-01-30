@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:tools="http://schemas.android.com/tools"
-    package="com.sherdle.webtoapp"
-    xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.sherdle.webtoapp">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
@@ -14,29 +14,36 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
-        android:requestLegacyExternalStorage="true"
+        android:name=".App"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:requestLegacyExternalStorage="true"
         android:theme="@style/AppTheme"
-        android:name="com.sherdle.webtoapp.App"
         android:usesCleartextTraffic="true"
         tools:ignore="GoogleAppIndexingWarning">
+        <activity
+            android:name=".activity.PrayerActivity"
+            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
+            android:exported="false" />
+
         <meta-data
             android:name="com.google.android.gms.ads.AD_MANAGER_APP"
-            android:value="true"/>
+            android:value="true" />
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="@string/ad_app_id"/>
+            android:value="@string/ad_app_id" />
+
         <activity
             android:name=".activity.MainActivity"
             android:configChanges="keyboardHidden|keyboard|orientation|screenSize"
-            android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize"
             android:exported="true"
-            android:label="@string/app_name">
+            android:hardwareAccelerated="true"
+            android:label="@string/app_name"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <!--
@@ -48,20 +55,25 @@
                 <data android:scheme="http" android:host="*.mysite.com" ></data>
                 <data android:scheme="https" android:host="mysite.com" ></data>
                 <data android:scheme="https" android:host="*.mysite.com" ></data>
-            </intent-filter>-->
-        </activity>
+            </intent-filter>
+            -->
+        </activity> <!-- ADS -->
+        <activity
+            android:name="com.google.android.gms.ads.AdActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize" /> <!-- temporary fix for Android 12 and OneSignal, should actually update OneSignal to latest version -->
+        <activity
+            android:name="com.onesignal.NotificationOpenedActivityHMS"
+            android:exported="true"
+            tools:node="merge" />
 
-        <!-- ADS -->
-        <activity android:name="com.google.android.gms.ads.AdActivity"
-            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize"/>
-
-        <!-- temporary fix for Android 12 and OneSignal, should actually update OneSignal to latest version -->
-        <activity android:name="com.onesignal.NotificationOpenedActivityHMS" android:exported="true" tools:node="merge"/>
-
-        <receiver android:name="com.onesignal.BootUpReceiver" android:exported="true" tools:node="merge" />
-
-        <receiver android:name="com.onesignal.UpgradeReceiver" android:exported="true" tools:node="merge" />
-
+        <receiver
+            android:name="com.onesignal.BootUpReceiver"
+            android:exported="true"
+            tools:node="merge" />
+        <receiver
+            android:name="com.onesignal.UpgradeReceiver"
+            android:exported="true"
+            tools:node="merge" />
     </application>
 
 </manifest>

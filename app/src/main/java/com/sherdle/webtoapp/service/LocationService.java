@@ -3,6 +3,8 @@ package com.sherdle.webtoapp.service;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -10,6 +12,10 @@ import android.os.Bundle;
 import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Locale;
 
 public class LocationService {
 
@@ -51,6 +57,28 @@ public class LocationService {
             Log.e(TAG, "Last known location is null");
             return null;
         }
+    }
+
+    public String getAddressFromCoordinates(double latitude, double longitude) {
+        Geocoder geocoder = new Geocoder(context, Locale.getDefault());
+        String result = null;
+
+        try {
+            List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
+            if (addresses != null && addresses.size() > 0) {
+                Address address = addresses.get(0);
+
+                StringBuilder stringBuilder = new StringBuilder();
+                for (int i = 0; i <= address.getMaxAddressLineIndex(); i++) {
+                    stringBuilder.append(address.getAddressLine(i)).append(", ");
+                }
+                result = stringBuilder.toString();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return result;
     }
 
     public void requestLocationUpdates() {

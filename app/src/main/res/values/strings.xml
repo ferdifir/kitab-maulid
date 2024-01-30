@@ -47,4 +47,8 @@
     <string name="rate_yes">Yes</string>
     <string name="rate_message">We hope you enjoy using %1$s. Would you like to help us by rating us in the Store?</string>
     <string name="rate_title">Enjoying our app?</string>
+    <string name="calendar">Calendar</string>
+    <string name="location">Location</string>
+    <string name="settings">Settings</string>
+    <string name="alarm">Alarm</string>
 </resources>
