@@ -1,4 +1,4 @@
-package com.sherdle.webtoapp.model;
+package com.sherdle.webtoapp.service.api.response.schedule;
 
 import com.google.gson.annotations.SerializedName;
 

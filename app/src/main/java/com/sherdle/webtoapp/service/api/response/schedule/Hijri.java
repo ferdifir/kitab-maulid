@@ -1,14 +1,18 @@
-package com.sherdle.webtoapp.model;
+package com.sherdle.webtoapp.service.api.response.schedule;
 
+import java.util.List;
 import com.google.gson.annotations.SerializedName;
 
-public class Gregorian{
+public class Hijri{
 
 	@SerializedName("date")
 	private String date;
 
 	@SerializedName("month")
 	private Month month;
+
+	@SerializedName("holidays")
+	private List<String> holidays;
 
 	@SerializedName("year")
 	private String year;
@@ -31,6 +35,10 @@ public class Gregorian{
 
 	public Month getMonth(){
 		return month;
+	}
+
+	public List<String> getHolidays(){
+		return holidays;
 	}
 
 	public String getYear(){

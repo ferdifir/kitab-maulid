@@ -2,7 +2,6 @@ package com.sherdle.webtoapp.activity;
 
 import static com.google.android.gms.ads.AdRequest.DEVICE_ID_EMULATOR;
 
-import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
 import com.google.android.gms.ads.FullScreenContentCallback;
@@ -21,11 +20,15 @@ import com.sherdle.webtoapp.R;
 import com.sherdle.webtoapp.drawer.menu.Action;
 import com.sherdle.webtoapp.drawer.menu.MenuItemCallback;
 import com.sherdle.webtoapp.drawer.menu.SimpleMenu;
-import com.sherdle.webtoapp.model.ApiResponse;
-import com.sherdle.webtoapp.model.DataItem;
-import com.sherdle.webtoapp.service.DatabaseHelper;
 import com.sherdle.webtoapp.service.LocationService;
-import com.sherdle.webtoapp.service.PrayerTimesApiRequest;
+import com.sherdle.webtoapp.service.api.ApiService;
+import com.sherdle.webtoapp.service.api.RetrofitClient;
+import com.sherdle.webtoapp.service.api.response.schedule.DataItem;
+import com.sherdle.webtoapp.service.api.response.schedule.PrayersResponse;
+import com.sherdle.webtoapp.service.api.response.schedule.Timings;
+import com.sherdle.webtoapp.service.db.AppDatabase;
+import com.sherdle.webtoapp.service.db.DatabaseInitializer;
+import com.sherdle.webtoapp.service.db.entity.PrayerSchedule;
 import com.sherdle.webtoapp.util.ThemeUtils;
 import com.sherdle.webtoapp.widget.SwipeableViewPager;
 import com.sherdle.webtoapp.widget.webview.WebToAppWebClient;
@@ -39,7 +42,6 @@ import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
-import android.content.ContentValues;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -76,12 +78,18 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
-public class MainActivity extends AppCompatActivity implements MenuItemCallback, PrayerTimesApiRequest.PrayerTimesApiCallback {
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
+public class MainActivity extends AppCompatActivity implements MenuItemCallback {
 
     //Views
     public Toolbar mToolbar;
@@ -108,6 +116,8 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback,
     private InterstitialAdLoadCallback callback;
     private LocationService locationService;
     private double lat, lon;
+    private AppDatabase database;
+    private ApiService api;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -123,7 +133,10 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback,
 
         setSupportActionBar(mToolbar);
         locationService = new LocationService(this);
-        getUserLocation();
+        database = DatabaseInitializer.getInstance(this);
+        api = RetrofitClient.getRetrofitInstance().create(ApiService.class);
+
+        initSchedule();
 
         mAdapter = new NavigationAdapter(getSupportFragmentManager(), this);
 
@@ -300,7 +313,7 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback,
 
     }
 
-    private void getUserLocation() {
+    private void initSchedule() {
         Location location = locationService.getLastKnownLocation();
         if (location != null) {
             lat = location.getLatitude();
@@ -308,7 +321,46 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback,
             Date currentDate = new Date();
             SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
             String currentDateTime = dateFormat.format(currentDate);
-            new PrayerTimesApiRequest(this, currentDateTime).execute(lat, lon);
+            int year = Integer.parseInt(currentDateTime.substring(0,4));
+            int month = Integer.parseInt(currentDateTime.substring(5,7));
+            Executor executor = Executors.newSingleThreadExecutor();
+            executor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    List<PrayerSchedule> scheduleList = database.prayerDao().getCurrentSchedule(currentDateTime);
+                    Log.d("Check Database", String.valueOf(scheduleList));
+                    if (scheduleList.isEmpty()) {
+                        api.getPrayerSchedule(year, month, lat, lon, 2).enqueue(new Callback<PrayersResponse>() {
+                            @Override
+                            public void onResponse(Call<PrayersResponse> call, Response<PrayersResponse> response) {
+                                if (response.isSuccessful()) {
+                                    List<PrayerSchedule> prayerSchedules = new ArrayList<>();
+                                    List<DataItem> dataItemList = response.body().getData();
+                                    for (int i = 0; i < dataItemList.size(); i++) {
+                                        PrayerSchedule schedule = new PrayerSchedule();
+                                        Timings timings = dataItemList.get(i).getTimings();
+                                        schedule.setDate(dataItemList.get(i).getDate().getGregorian().getDate());
+                                        schedule.setImsak(timings.getImsak());
+                                        schedule.setFajr(timings.getFajr());
+                                        schedule.setSunrise(timings.getSunrise());
+                                        schedule.setDhuhr(timings.getDhuhr());
+                                        schedule.setAsr(timings.getAsr());
+                                        schedule.setMaghrib(timings.getMaghrib());
+                                        schedule.setIsha(timings.getIsha());
+                                        prayerSchedules.add(schedule);
+                                    }
+                                    database.prayerDao().insertPrayerSchedule(prayerSchedules);
+                                }
+                            }
+
+                            @Override
+                            public void onFailure(Call<PrayersResponse> call, Throwable t) {
+
+                            }
+                        });
+                    }
+                }
+            });
         }
     }
 
@@ -683,52 +735,6 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback,
             showInterstitial();
             Log.v("INFO", "Drawer Item Selected");
         }
-    }
-
-    @Override
-    public void onApiResult(ApiResponse result) {
-        try {
-            DatabaseHelper db = new DatabaseHelper(this);
-            boolean isDataExist = db.isDataExists();
-            if (!isDataExist) {
-                List<DataItem> data = result.getData();
-                ContentValues[] bulkData = new ContentValues[data.size()];
-                for (int i = 0; i < data.size(); i++) {
-                    ContentValues contentValues = new ContentValues();
-                    contentValues.put(DatabaseHelper.COLUMN_DATE, data.get(i).getDate().getReadable());
-                    contentValues.put(DatabaseHelper.COLUMN_FAJR, data.get(i).getTimings().getFajr());
-                    contentValues.put(DatabaseHelper.COLUMN_SUNRISE, data.get(i).getTimings().getSunrise());
-                    contentValues.put(DatabaseHelper.COLUMN_DHUHR, data.get(i).getTimings().getDhuhr());
-                    contentValues.put(DatabaseHelper.COLUMN_ASR, data.get(i).getTimings().getAsr());
-                    contentValues.put(DatabaseHelper.COLUMN_SUNSET, data.get(i).getTimings().getSunset());
-                    contentValues.put(DatabaseHelper.COLUMN_MAGHRIB, data.get(i).getTimings().getMaghrib());
-                    contentValues.put(DatabaseHelper.COLUMN_ISHA, data.get(i).getTimings().getIsha());
-                    contentValues.put(DatabaseHelper.COLUMN_IMSAK, data.get(i).getTimings().getImsak());
-                    bulkData[i] = contentValues;
-                }
-                db.insertBulkData(bulkData);
-            } else {
-                Date currentDate = new Date();
-                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-                String currentDateTime = dateFormat.format(currentDate);
-                String day = currentDateTime.substring(8,10);
-                if (day.equals("30")) {
-                    Calendar calendar = Calendar.getInstance();
-                    calendar.setTime(currentDate);
-                    calendar.add(Calendar.MONTH, 1);
-                    Date newDate = calendar.getTime();
-                    String newDateTime = dateFormat.format(newDate);
-                    new PrayerTimesApiRequest(this, newDateTime).execute(lat, lon);
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Override
-    public void onApiError() {
-
     }
     
 }

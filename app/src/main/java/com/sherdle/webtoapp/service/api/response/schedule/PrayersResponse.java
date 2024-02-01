@@ -1,9 +1,9 @@
-package com.sherdle.webtoapp.model;
+package com.sherdle.webtoapp.service.api.response.schedule;
 
 import java.util.List;
 import com.google.gson.annotations.SerializedName;
 
-public class ApiResponse{
+public class PrayersResponse{
 
 	@SerializedName("code")
 	private int code;
