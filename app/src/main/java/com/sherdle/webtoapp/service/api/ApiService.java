@@ -20,4 +20,12 @@ public interface ApiService {
             @Query("longitude") double longitude,
             @Query("method") int method
     );
+
+    @GET("v1/calendar/{year}")
+    Call<PrayersResponse> getPrayerCalendar(
+            @Path("year") int year,
+            @Query("latitude") double latitude,
+            @Query("longitude") double longitude,
+            @Query("method") int method
+    );
 }

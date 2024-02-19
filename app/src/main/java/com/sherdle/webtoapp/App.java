@@ -4,10 +4,21 @@ import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 
 import android.content.Intent;
 import android.net.Uri;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.multidex.MultiDexApplication;
+
 import android.text.TextUtils;
 import android.util.Log;
+import com.android.billingclient.api.BillingClient;
+import com.android.billingclient.api.PurchasesUpdatedListener;
+import com.android.billingclient.api.BillingClientStateListener;
+import com.android.billingclient.api.BillingResult;
+import com.android.billingclient.api.Purchase;
+import com.android.billingclient.api.PurchasesUpdatedListener;
 
+import com.android.billingclient.api.BillingClient;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.analytics.FirebaseAnalytics;
 import com.onesignal.OSNotificationOpenedResult;
@@ -17,12 +28,16 @@ import com.sherdle.webtoapp.activity.MainActivity;
 
 import org.json.JSONObject;
 
+import java.util.List;
+
 public class App extends MultiDexApplication {
 
-      private String push_url = null;
+    private String push_url = null;
     private FirebaseAnalytics mFirebaseAnalytics;
+    private BillingClient billingClient;
 
-    @Override public void onCreate() {
+    @Override
+    public void onCreate() {
         super.onCreate();
 
         //TODO Do something else, i.e. test for presense of Firebase file or make this a boolean
@@ -52,7 +67,36 @@ public class App extends MultiDexApplication {
 
             //System.out.println("UserId: " + OneSignal.getDeviceState().getUserId());
 
+
+            // Google Play Billing
+            billingClient = BillingClient.newBuilder(this)
+                    .enablePendingPurchases()
+                    .setListener(purchasesUpdatedListener)
+                    .build();
+
+            billingClient.startConnection(new BillingClientStateListener() {
+                @Override
+                public void onBillingSetupFinished(BillingResult billingResult) {
+                    // Lakukan sesuatu setelah koneksi berhasil
+                }
+
+                @Override
+                public void onBillingServiceDisconnected() {
+                    // Lakukan sesuatu ketika koneksi gagal
+                }
+            });
         }
+    }
+
+    private final PurchasesUpdatedListener purchasesUpdatedListener = new PurchasesUpdatedListener() {
+        @Override
+        public void onPurchasesUpdated(@NonNull BillingResult billingResult, @Nullable List<Purchase> list) {
+
+        }
+    };
+
+    public BillingClient getBillingClient() {
+        return billingClient;
     }
 
     // This fires when a notification is opened by tapping on it or one is received while the app is running.
@@ -88,13 +132,13 @@ public class App extends MultiDexApplication {
         }
     }
 
-    public synchronized String getAndResetPushUrl(){
+    public synchronized String getAndResetPushUrl() {
         String url = push_url;
         push_url = null;
         return url;
     }
 
-    public synchronized void setPushUrl(String url){
+    public synchronized void setPushUrl(String url) {
         this.push_url = url;
     }
 } 

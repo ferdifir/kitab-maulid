@@ -88,4 +88,13 @@ public class Config {
     //The frequency in which interstitial ads are shown
     public static final int INTERSTITIAL_INTERVAL = 2;
     public static final String ADZAN_TIME_API = "http://api.aladhan.com/v1/calendar/";
+    public static final String IMSAK_NOTIFICATION = "imsak_notification";
+    public static final String SUBUH_NOTIFICATION = "subuh_notification";
+    public static final String TERBIT_NOTIFICATION = "terbit_notification";
+    public static final String DZUHUR_NOTIFICATION = "dzuhur_notification";
+    public static final String ASHAR_NOTIFICATION = "ashar_notification";
+    public static final String MAGHRIB_NOTIFICATION = "maghrib_notification";
+    public static final String ISYA_NOTIFICATION = "isya_notification";
+    public static final String LAT_KEY = "latitudekey";
+    public static final String LON_KEY = "longitudekey";
 }

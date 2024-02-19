@@ -8,6 +8,8 @@
     <string name="ad_app_id">ca-app-pub-3940256099942544~3347511713</string>
     <string name="onesignal_app_id"><!--onesignal app id here --></string>
 
+    <string name="qibla_direction_format">Arah Qiblat: %.2f derajat</string>
+
     <!-- Translate Strings below -->
     <string name="previous">Previous</string>
     <string name="next">Next</string>

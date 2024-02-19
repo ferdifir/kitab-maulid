@@ -14,11 +14,13 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.CookieManager;
 import android.webkit.CookieSyncManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.MimeTypeMap;
 import android.webkit.URLUtil;
 import android.webkit.WebSettings.PluginState;
@@ -30,6 +32,9 @@ import android.widget.Toast;
 import com.onesignal.OneSignal;
 import com.sherdle.webtoapp.App;
 import com.sherdle.webtoapp.Config;
+import com.sherdle.webtoapp.activity.PrayerActivity;
+import com.sherdle.webtoapp.activity.QiblatActivity;
+import com.sherdle.webtoapp.service.PremiumManager;
 import com.sherdle.webtoapp.util.GetFileInfo;
 import com.sherdle.webtoapp.R;
 import com.sherdle.webtoapp.widget.webview.WebToAppChromeClient;
@@ -40,7 +45,7 @@ import com.sherdle.webtoapp.widget.scrollable.ToolbarWebViewScrollListener;
 
 import java.util.concurrent.ExecutionException;
 
-public class WebFragment extends Fragment implements AdvancedWebView.Listener, SwipeRefreshLayout.OnRefreshListener{
+public class WebFragment extends Fragment implements AdvancedWebView.Listener, SwipeRefreshLayout.OnRefreshListener, PremiumManager.PremiumListener {
 
     //Layouts
     public FrameLayout rl;
@@ -57,6 +62,8 @@ public class WebFragment extends Fragment implements AdvancedWebView.Listener, S
     static String URL = "url";
     public int firstLoad = 0;
     private boolean clearHistory = false;
+
+    private PremiumManager premiumManager;
 
     public WebFragment() {
         // Required empty public constructor
@@ -77,8 +84,15 @@ public class WebFragment extends Fragment implements AdvancedWebView.Listener, S
     }
 
     @Override
+    public void onPremiumPurchased() {
+        // Disini nanti code untuk menghilangkan iklan
+        Log.d("TAG", "Premium purchased!");
+    }
+
+    @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        premiumManager = new PremiumManager(getActivity(), this);
         if (getArguments() != null && mainUrl == null) {
             mainUrl = getArguments().getString(URL);
             firstLoad = 0;
@@ -160,12 +174,26 @@ public class WebFragment extends Fragment implements AdvancedWebView.Listener, S
 
         // load url (if connection available
         if (webClient.hasConnectivity(mainUrl, true)) {
+            browser.addJavascriptInterface(new WebAppInterface(), "Android");
             browser.loadUrl(mainUrl);
         } else {
             try {
                 ((MainActivity) getActivity()).hideSplash();
             } catch (Exception e){
                 e.printStackTrace();
+            }
+        }
+    }
+
+    public class WebAppInterface {
+        @JavascriptInterface
+        public void redirectToActivity(String itemName) {
+            if (itemName.equals("menu3")) {
+                startActivity(new Intent(getActivity(), PrayerActivity.class));
+            } else if (itemName.equals("menu2")) {
+                Toast.makeText(getActivity(), "Menu 2", Toast.LENGTH_LONG).show();
+            } else if (itemName.equals("test")){
+                premiumManager.purchasePremium();
             }
         }
     }

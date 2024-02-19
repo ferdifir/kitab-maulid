@@ -14,22 +14,19 @@ import com.google.android.gms.ads.interstitial.InterstitialAd;
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.tabs.TabLayout;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.sherdle.webtoapp.App;
 import com.sherdle.webtoapp.Config;
 import com.sherdle.webtoapp.R;
 import com.sherdle.webtoapp.drawer.menu.Action;
 import com.sherdle.webtoapp.drawer.menu.MenuItemCallback;
 import com.sherdle.webtoapp.drawer.menu.SimpleMenu;
+import com.sherdle.webtoapp.service.AlarmReceiver;
 import com.sherdle.webtoapp.service.LocationService;
-import com.sherdle.webtoapp.service.api.ApiService;
-import com.sherdle.webtoapp.service.api.RetrofitClient;
-import com.sherdle.webtoapp.service.api.response.schedule.DataItem;
-import com.sherdle.webtoapp.service.api.response.schedule.PrayersResponse;
 import com.sherdle.webtoapp.service.api.response.schedule.Timings;
-import com.sherdle.webtoapp.service.db.AppDatabase;
-import com.sherdle.webtoapp.service.db.DatabaseInitializer;
-import com.sherdle.webtoapp.service.db.entity.PrayerSchedule;
 import com.sherdle.webtoapp.util.ThemeUtils;
+import com.sherdle.webtoapp.utils.Helper;
+import com.sherdle.webtoapp.viewmodel.MainViewModel;
 import com.sherdle.webtoapp.widget.SwipeableViewPager;
 import com.sherdle.webtoapp.widget.webview.WebToAppWebClient;
 import com.tjeannin.apprate.AppRate;
@@ -37,18 +34,25 @@ import com.tjeannin.apprate.AppRate;
 import com.sherdle.webtoapp.adapter.NavigationAdapter;
 import com.sherdle.webtoapp.fragment.WebFragment;
 
+import android.Manifest;
 import android.animation.Animator;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.app.Activity;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.ActivityNotFoundException;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+
+import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.GravityCompat;
 import androidx.appcompat.app.ActionBarDrawerToggle;
@@ -64,6 +68,10 @@ import android.content.res.Configuration;
 import android.os.Handler;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkInfo;
+import androidx.work.WorkManager;
 
 import android.text.Html;
 import android.text.SpannableString;
@@ -78,16 +86,16 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.text.SimpleDateFormat;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+import java.util.Locale;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity implements MenuItemCallback {
 
@@ -116,8 +124,9 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback 
     private InterstitialAdLoadCallback callback;
     private LocationService locationService;
     private double lat, lon;
-    private AppDatabase database;
-    private ApiService api;
+    private MainViewModel viewModel;
+    private WorkManager workManager;
+    private SharedPreferences sharedPreference;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -130,13 +139,12 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback 
         mHeaderView = (View) findViewById(R.id.header_container);
         mSlidingTabLayout = (TabLayout) findViewById(R.id.tabs);
         mViewPager = (SwipeableViewPager) findViewById(R.id.pager);
+        workManager = WorkManager.getInstance(this);
 
         setSupportActionBar(mToolbar);
         locationService = new LocationService(this);
-        database = DatabaseInitializer.getInstance(this);
-        api = RetrofitClient.getRetrofitInstance().create(ApiService.class);
-
-        initSchedule();
+        viewModel = new ViewModelProvider(this).get(MainViewModel.class);
+        sharedPreference = getSharedPreferences("prayer_alarm", MODE_PRIVATE);
 
         mAdapter = new NavigationAdapter(getSupportFragmentManager(), this);
 
@@ -155,7 +163,7 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback 
             mSlidingTabLayout.setVisibility(View.GONE);
 
         hasPermissionToDo(this, Config.PERMISSIONS_REQUIRED);
-
+        initSchedule();
         RelativeLayout.LayoutParams lp = (RelativeLayout.LayoutParams) mViewPager.getLayoutParams();
         if ((Config.HIDE_ACTIONBAR && getHideTabs()) || ((Config.HIDE_ACTIONBAR || getHideTabs()) && getCollapsingActionBar())){
             lp.topMargin = 0;
@@ -314,54 +322,81 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback 
     }
 
     private void initSchedule() {
-        Location location = locationService.getLastKnownLocation();
-        if (location != null) {
-            lat = location.getLatitude();
-            lon = location.getLatitude();
-            Date currentDate = new Date();
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            String currentDateTime = dateFormat.format(currentDate);
-            int year = Integer.parseInt(currentDateTime.substring(0,4));
-            int month = Integer.parseInt(currentDateTime.substring(5,7));
-            Executor executor = Executors.newSingleThreadExecutor();
-            executor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    List<PrayerSchedule> scheduleList = database.prayerDao().getCurrentSchedule(currentDateTime);
-                    Log.d("Check Database", String.valueOf(scheduleList));
-                    if (scheduleList.isEmpty()) {
-                        api.getPrayerSchedule(year, month, lat, lon, 2).enqueue(new Callback<PrayersResponse>() {
-                            @Override
-                            public void onResponse(Call<PrayersResponse> call, Response<PrayersResponse> response) {
-                                if (response.isSuccessful()) {
-                                    List<PrayerSchedule> prayerSchedules = new ArrayList<>();
-                                    List<DataItem> dataItemList = response.body().getData();
-                                    for (int i = 0; i < dataItemList.size(); i++) {
-                                        PrayerSchedule schedule = new PrayerSchedule();
-                                        Timings timings = dataItemList.get(i).getTimings();
-                                        schedule.setDate(dataItemList.get(i).getDate().getGregorian().getDate());
-                                        schedule.setImsak(timings.getImsak());
-                                        schedule.setFajr(timings.getFajr());
-                                        schedule.setSunrise(timings.getSunrise());
-                                        schedule.setDhuhr(timings.getDhuhr());
-                                        schedule.setAsr(timings.getAsr());
-                                        schedule.setMaghrib(timings.getMaghrib());
-                                        schedule.setIsha(timings.getIsha());
-                                        prayerSchedules.add(schedule);
-                                    }
-                                    database.prayerDao().insertPrayerSchedule(prayerSchedules);
-                                }
-                            }
-
-                            @Override
-                            public void onFailure(Call<PrayersResponse> call, Throwable t) {
-
-                            }
-                        });
+        if (isLocationPermissionGranted()) {
+            Location location = locationService.getLastKnownLocation();
+            if (location != null) {
+                lat = location.getLatitude();
+                lon = location.getLatitude();
+                sharedPreference.edit().putFloat(Config.LAT_KEY, (float) lat).apply();
+                sharedPreference.edit().putFloat(Config.LON_KEY, (float) lon).apply();
+                viewModel.getPrayerSchedule(lat, lon);
+                viewModel.dataStatus.observe(this, dataStatus -> {
+                    switch (dataStatus) {
+                        case LOADING:
+                            Toast.makeText(this, "Sedang mendapatkan data jadwal sholat", Toast.LENGTH_SHORT).show();
+                        case ERROR:
+                            Toast.makeText(this, "Data jadwal sholat gagal didapat", Toast.LENGTH_SHORT).show();
+                        case SUCCESS:
+                            setAlarm();
+                        default:
+                            Log.d("","");
                     }
-                }
-            });
+                });
+            }
         }
+    }
+
+    private void setAlarm() {
+        Toast.makeText(this, "Data jadwal sholat berhasil didapat", Toast.LENGTH_SHORT).show();
+        viewModel.prayers.observe(this, prayerEntity -> {
+            String next = findNextSchedule(Helper.getPrayerList(prayerEntity));
+            int jam = Integer.parseInt(next.substring(0,2));
+            int menit = Integer.parseInt(next.substring(3,5));
+            AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTimeInMillis(System.currentTimeMillis());
+            calendar.set(Calendar.HOUR_OF_DAY, jam);
+            calendar.set(Calendar.MINUTE, menit);
+            calendar.set(Calendar.SECOND, 0);
+
+            Intent intent = new Intent(this, AlarmReceiver.class);
+            PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+
+            alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+        });
+    }
+
+    public static String findNextSchedule(List<String> jadwalSholat) {
+        LocalTime waktuSekarangLocalTime = LocalTime.now();
+        for (String jadwal : jadwalSholat) {
+            LocalTime jadwalLocalTime = LocalTime.parse(jadwal);
+            if (jadwalLocalTime.isAfter(waktuSekarangLocalTime)) {
+                return jadwal;
+            }
+        }
+        return null;
+    }
+
+    private boolean isWorkScheduled(String tag) {
+        ListenableFuture<List<WorkInfo>> statuses = workManager.getWorkInfosByTag(tag);
+
+        boolean running = false;
+        List<WorkInfo> workInfoList = Collections.emptyList();
+
+        try {
+            workInfoList = statuses.get();
+        } catch (ExecutionException e) {
+            Log.d("TAG", "ExecutionException in isWorkScheduled: " + e);
+        } catch (InterruptedException e) {
+            Log.d("TAG", "InterruptedException in isWorkScheduled: " + e);
+        }
+
+        for (WorkInfo workInfo : workInfoList) {
+            WorkInfo.State state = workInfo.getState();
+            running = running || (state == WorkInfo.State.RUNNING | state == WorkInfo.State.ENQUEUED);
+        }
+        return running;
     }
 
     // using the back button of the device
@@ -445,9 +480,6 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback 
             intent.putExtra("app_uid", getApplicationInfo().uid);
             intent.putExtra("android.provider.extra.APP_PACKAGE", getPackageName());
             startActivity(intent);
-        } else if (item.getItemId() == R.id.prayer_alarm) {
-            Intent intent = new Intent(this, PrayerActivity.class);
-            startActivity(intent);
         }
         return super.onOptionsItemSelected(item);
     }
@@ -516,7 +548,7 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback 
                     public void run() {
                         // hide splash image
                         findViewById(R.id.imageLoading1).setVisibility(
-                                    View.GONE);
+                                View.GONE);
                     }
                     // set a delay before splashscreen is hidden
                 }, Config.SPLASH_SCREEN_DELAY);
@@ -736,5 +768,21 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback 
             Log.v("INFO", "Drawer Item Selected");
         }
     }
-    
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 1){
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                initSchedule();
+            } else {
+                Toast.makeText(this, "Izin lokasi ditolak. Aplikasi mungkin tidak berfungsi sepenuhnya.", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private boolean isLocationPermissionGranted() {
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
 }

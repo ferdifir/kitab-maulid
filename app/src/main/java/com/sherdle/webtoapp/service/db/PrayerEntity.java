@@ -1,13 +1,14 @@
-package com.sherdle.webtoapp.service.db.entity;
+package com.sherdle.webtoapp.service.db;
 
 import androidx.annotation.NonNull;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
 @Entity(tableName = "prayers")
-public class PrayerSchedule {
+public class PrayerEntity {
+
     @NonNull
-    @PrimaryKey
+    @PrimaryKey()
     private String date;
 
     private String sunset;
@@ -20,12 +21,7 @@ public class PrayerSchedule {
     private String midnight;
     private String imsak;
 
-    public PrayerSchedule() {
-
-    }
-
-    public PrayerSchedule(String date, String sunset, String asr, String isha, String fajr,
-                          String dhuhr, String maghrib, String sunrise, String midnight, String imsak) {
+    public PrayerEntity(String date, String sunset, String asr, String isha, String fajr, String dhuhr, String maghrib, String sunrise, String midnight, String imsak) {
         this.date = date;
         this.sunset = sunset;
         this.asr = asr;
@@ -38,6 +34,7 @@ public class PrayerSchedule {
         this.imsak = imsak;
     }
 
+    @NonNull
     public String getDate() {
         return date;
     }

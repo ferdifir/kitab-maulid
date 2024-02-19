@@ -10,8 +10,16 @@ public class Params{
 	@SerializedName("Fajr")
 	private int fajr;
 
+	public void setIsha(int isha){
+		this.isha = isha;
+	}
+
 	public int getIsha(){
 		return isha;
+	}
+
+	public void setFajr(int fajr){
+		this.fajr = fajr;
 	}
 
 	public int getFajr(){

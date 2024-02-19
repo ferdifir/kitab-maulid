@@ -12,6 +12,9 @@
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <uses-feature android:name="android.hardware.sensor.accelerometer" />
+    <uses-feature android:name="android.hardware.sensor.compass" />
 
     <application
         android:name=".App"
@@ -23,9 +26,12 @@
         android:usesCleartextTraffic="true"
         tools:ignore="GoogleAppIndexingWarning">
         <activity
-            android:name=".activity.PrayerActivity"
-            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
+            android:name=".activity.QiblatActivity"
             android:exported="false" />
+        <activity
+            android:name=".activity.PrayerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AppCompat.DayNight.NoActionBar" />
 
         <meta-data
             android:name="com.google.android.gms.ads.AD_MANAGER_APP"
@@ -74,6 +80,12 @@
             android:name="com.onesignal.UpgradeReceiver"
             android:exported="true"
             tools:node="merge" />
+
+        <receiver android:name=".service.StopServiceReceiver" />
+
+        <receiver android:name=".service.AlarmReceiver" />
+
+        <service android:name=".service.NotificationSoundService"/>
     </application>
 
 </manifest>
