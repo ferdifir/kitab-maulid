@@ -8,6 +8,7 @@ import android.os.CountDownTimer;
 import android.util.Log;
 import android.view.Menu;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.appcompat.app.ActionBar;
@@ -20,19 +21,18 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.sherdle.webtoapp.Config;
 import com.sherdle.webtoapp.R;
 import com.sherdle.webtoapp.service.LocationService;
-import com.sherdle.webtoapp.service.api.response.schedule.Timings;
 import com.sherdle.webtoapp.service.db.PrayerEntity;
+import com.sherdle.webtoapp.service.premium.AdMobHandler;
+import com.sherdle.webtoapp.service.premium.PremiumManager;
 import com.sherdle.webtoapp.service.sensor.BearingSensorManager;
 import com.sherdle.webtoapp.utils.Helper;
 import com.sherdle.webtoapp.viewmodel.PrayerViewModel;
 
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalTime;
-import java.util.ArrayList;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 
 public class PrayerActivity extends AppCompatActivity {
 
@@ -59,6 +59,8 @@ public class PrayerActivity extends AppCompatActivity {
     private SharedPreferences sharedPreferences;
     private static final double KAABA_LATITUDE = 21.4225;
     private static final double KAABA_LONGITUDE = 39.8262;
+    private AdMobHandler adMobHandler;
+    private PremiumManager premiumManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,7 +68,16 @@ public class PrayerActivity extends AppCompatActivity {
         setContentView(R.layout.activity_prayer);
         prayerViewModel = new ViewModelProvider(this).get(PrayerViewModel.class);
         locationService = new LocationService(this);
-        sharedPreferences = getSharedPreferences("prayer_alarm", MODE_PRIVATE);
+        sharedPreferences = getSharedPreferences(Config.PREFS_KEY, MODE_PRIVATE);
+        LinearLayout adContainerLayout = findViewById(R.id.adViewH);
+        adMobHandler = new AdMobHandler(this);
+        adMobHandler.loadBannerAd(this, adContainerLayout);
+        premiumManager = new PremiumManager(this, new PremiumManager.PremiumListener() {
+            @Override
+            public void onPremiumPurchased() {
+                adMobHandler.hideBannerAd();
+            }
+        });
 
         initView();
         getUserLocation();
@@ -93,22 +104,33 @@ public class PrayerActivity extends AppCompatActivity {
             tvMaghrib.setText(today.getMaghrib());
             tvTerbit.setText(today.getSunrise());
             tvSubuh.setText(today.getFajr());
+            tvImsak.setText(today.getImsak());
 
             boolean isAfterIsya = Helper.isIsya(today.getIsha());
             LocalTime now = LocalTime.now();
             if (isAfterIsya) {
                 String imsak = tomorrow.getImsak();
-                if (now.isAfter(LocalTime.MIDNIGHT)) {
-                    Long imsakTime = Helper.convertTimeStringToMillis(imsak);
+                int jamImsak = Integer.parseInt(imsak.substring(0, 2));
+                int menitImsak = Integer.parseInt(imsak.substring(3));
+                if (now.isAfter(LocalTime.of(23, 59))) {
+                    long imsakTime = now.until(LocalTime.of(jamImsak, menitImsak), ChronoUnit.MILLIS);
                     startCountdown(imsakTime, 0);
                 } else {
-                    Long toMidnight = Helper.convertTimeStringToMillis("23:59");
-                    Long toImsak = Helper.convertTimeStringToMillis(imsak);
-//                    startCountdown();
+                    long toMidnight = now.until(LocalTime.of(23, 59), ChronoUnit.MILLIS);
+                    long toImsak = LocalTime.MIDNIGHT.until(LocalTime.of(jamImsak, menitImsak), ChronoUnit.MILLIS);
+                    startCountdown(toMidnight + toImsak, 0);
                 }
             } else {
-                long diff = Helper.getSelisihWaktuSholatTerdekat(Helper.getPrayerList(today));
-                startCountdown(diff, 4);
+                List<String> prayerList = Helper.getPrayerList(today);
+                for (int i = 0; i < prayerList.size(); i++) {
+                    int hour = Integer.parseInt(prayerList.get(i).substring(0, 2));
+                    int minute = Integer.parseInt(prayerList.get(i).substring(3));
+                    LocalTime prayerSchedule = LocalTime.of(hour, minute);
+                    if (prayerSchedule.isAfter(now)) {
+                        startCountdown(now.until(prayerSchedule, ChronoUnit.MILLIS), i);
+                        break;
+                    }
+                }
             }
         });
     }
@@ -119,16 +141,18 @@ public class PrayerActivity extends AppCompatActivity {
                     "Notifikasi Imsak",
                     sharedPreferences.getInt(Config.IMSAK_NOTIFICATION, 3),
                     (dialog, which) -> {
-                        sharedPreferences.edit().putInt(Config.IMSAK_NOTIFICATION, which).apply();
+                        sharedPreferences.edit().putInt(Config.IMSAK_NOTIFICATION, 1 + which).apply();
+                        initAlarmNotif();
                     }
             );
         });
         ivAlarmSubuh.setOnClickListener(v -> {
             showRadioButtonDialog(
                     "Notifikasi Subuh",
-                    sharedPreferences.getInt(Config.SUBUH_NOTIFICATION, 0),
+                    sharedPreferences.getInt(Config.SUBUH_NOTIFICATION, 3),
                     (dialog, which) -> {
                         sharedPreferences.edit().putInt(Config.SUBUH_NOTIFICATION, which).apply();
+                        initAlarmNotif();
                     }
             );
         });
@@ -137,53 +161,58 @@ public class PrayerActivity extends AppCompatActivity {
                     "Notifikasi Terbit",
                     sharedPreferences.getInt(Config.TERBIT_NOTIFICATION, 3),
                     (dialog, which) -> {
-                        sharedPreferences.edit().putInt(Config.TERBIT_NOTIFICATION, which).apply();
+                        sharedPreferences.edit().putInt(Config.TERBIT_NOTIFICATION,1 +  which).apply();
+                        initAlarmNotif();
                     }
             );
         });
         ivAlarmDhuhur.setOnClickListener(v -> {
             showRadioButtonDialog(
                     "Notifikasi Dhuhur",
-                    sharedPreferences.getInt(Config.DZUHUR_NOTIFICATION, 0),
+                    sharedPreferences.getInt(Config.DZUHUR_NOTIFICATION, 3),
                     (dialog, which) -> {
                         sharedPreferences.edit().putInt(Config.DZUHUR_NOTIFICATION, which).apply();
+                        initAlarmNotif();
                     }
             );
         });
         ivAlarmAshar.setOnClickListener(v -> {
             showRadioButtonDialog(
                     "Notifikasi Ashar",
-                    sharedPreferences.getInt(Config.ASHAR_NOTIFICATION, 0),
+                    sharedPreferences.getInt(Config.ASHAR_NOTIFICATION, 3),
                     (dialog, which) -> {
                         sharedPreferences.edit().putInt(Config.ASHAR_NOTIFICATION, which).apply();
+                        initAlarmNotif();
                     }
             );
         });
         ivAlarmMaghrib.setOnClickListener(v -> {
             showRadioButtonDialog(
                     "Notifikasi Maghrib",
-                    sharedPreferences.getInt(Config.MAGHRIB_NOTIFICATION, 0),
+                    sharedPreferences.getInt(Config.MAGHRIB_NOTIFICATION, 3),
                     (dialog, which) -> {
                         sharedPreferences.edit().putInt(Config.MAGHRIB_NOTIFICATION, which).apply();
+                        initAlarmNotif();
                     }
             );
         });
         ivAlarmIsya.setOnClickListener(v -> {
             showRadioButtonDialog(
                     "Notifikasi Isya",
-                    sharedPreferences.getInt(Config.ISYA_NOTIFICATION, 0),
+                    sharedPreferences.getInt(Config.ISYA_NOTIFICATION, 3),
                     (dialog, which) -> {
                         sharedPreferences.edit().putInt(Config.ISYA_NOTIFICATION, which).apply();
+                        initAlarmNotif();
                     }
             );
         });
     }
 
     public void showRadioButtonDialog(String title, int checkedItem, DialogInterface.OnClickListener listener) {
-        String[] items = {"Suara adzan", "Suara standar alarm", "Suara standar notifikasi", "Tanpa suara (hanya notifikasi)", "Nonaktifkan notifikasi"};
-        if (title.contains("Imsak") || title.contains("Terbit")) {
-            items = new String[]{"Suara standar alarm", "Suara standar notifikasi", "Tanpa suara (hanya notifikasi)", "Nonaktifkan notifikasi"};
-        }
+        String[] items = title.contains("Imsak") || title.contains("Terbit") ?
+                new String[]{"Suara standar alarm", "Suara standar notifikasi", "Tanpa suara (hanya notifikasi)", "Nonaktifkan notifikasi"} :
+                new String[]{"Suara adzan", "Suara standar alarm", "Suara standar notifikasi", "Tanpa suara (hanya notifikasi)", "Nonaktifkan notifikasi"};
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(title);
         builder.setSingleChoiceItems(items, checkedItem, listener);
@@ -206,6 +235,7 @@ public class PrayerActivity extends AppCompatActivity {
     }
 
     private void startCountdown(Long nextPrayerSchedule, int index) {
+        Log.d("Countdown", String.valueOf(nextPrayerSchedule));
         countDownTimer = new CountDownTimer(nextPrayerSchedule, 1000) {
             @Override
             public void onTick(long millisUntilFinished) {
@@ -276,6 +306,41 @@ public class PrayerActivity extends AppCompatActivity {
         ivAlarmMaghrib = findViewById(R.id.iv_alarm_maghrib);
         ivAlarmIsya = findViewById(R.id.iv_alarm_isya);
         swipeRefreshLayout = findViewById(R.id.swipe_refresh_layout_prayer);
+        initAlarmNotif();
+    }
+
+    private void initAlarmNotif() {
+        int imsak = sharedPreferences.getInt(Config.IMSAK_NOTIFICATION, 3);
+        int subuh = sharedPreferences.getInt(Config.SUBUH_NOTIFICATION, 3);
+        int terbit = sharedPreferences.getInt(Config.TERBIT_NOTIFICATION, 3);
+        int dhuhur = sharedPreferences.getInt(Config.DZUHUR_NOTIFICATION, 3);
+        int ashar = sharedPreferences.getInt(Config.ASHAR_NOTIFICATION, 3);
+        int maghrib = sharedPreferences.getInt(Config.MAGHRIB_NOTIFICATION, 3);
+        int isya = sharedPreferences.getInt(Config.ISYA_NOTIFICATION, 3);
+        ivAlarmImsak.setImageDrawable(getResources().getDrawable(getDrawableNotif(imsak)));
+        ivAlarmSubuh.setImageDrawable(getResources().getDrawable(getDrawableNotif(subuh)));
+        ivAlarmTerbit.setImageDrawable(getResources().getDrawable(getDrawableNotif(terbit)));
+        ivAlarmDhuhur.setImageDrawable(getResources().getDrawable(getDrawableNotif(dhuhur)));
+        ivAlarmAshar.setImageDrawable(getResources().getDrawable(getDrawableNotif(ashar)));
+        ivAlarmMaghrib.setImageDrawable(getResources().getDrawable(getDrawableNotif(maghrib)));
+        ivAlarmIsya.setImageDrawable(getResources().getDrawable(getDrawableNotif(isya)));
+    }
+
+    private int getDrawableNotif(int index) {
+        switch (index) {
+            case 0:
+                return R.drawable.ic_alarm;
+            case 1:
+                return R.drawable.ic_notifications_active;
+            case 2:
+                return R.drawable.ic_notifications;
+            case 3:
+                return R.drawable.ic_notifications_none;
+            case 4:
+                return R.drawable.ic_notifications_off;
+            default:
+                return R.drawable.ic_alarm;
+        }
     }
 
     @Override
@@ -298,7 +363,8 @@ public class PrayerActivity extends AppCompatActivity {
         }
 
         tvCountdown.setText(timeLeftFormatted);
-        tvCountdownDesc.setText("Menuju Waktu Sholat " + Helper.getPrayerName(prayer));
+        String textDesc = prayer == 0 || prayer == 2 ? "Menuju Waktu " + Helper.getPrayerName(prayer) : "Menuju Waktu Sholat " + Helper.getPrayerName(prayer);
+        tvCountdownDesc.setText(textDesc);
     }
 
     private double calculateQiblaDirection(double userLatitude, double userLongitude, float bearing) {

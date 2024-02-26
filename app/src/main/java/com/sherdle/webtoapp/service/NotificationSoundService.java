@@ -2,7 +2,6 @@ package com.sherdle.webtoapp.service;
 
 import android.app.Service;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.media.MediaPlayer;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -18,10 +17,11 @@ public class NotificationSoundService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        SharedPreferences sharedPreferences = getSharedPreferences("prayer_alarm", MODE_PRIVATE);
-        String soundUriString = sharedPreferences.getString("sound_notif", null);
-//        Uri soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-        Uri soundUri = Uri.parse(soundUriString);
+        Uri soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        Uri uriData = intent.getData();
+        if (uriData != null) {
+            soundUri = uriData;
+        }
         mediaPlayer = MediaPlayer.create(this, soundUri);
         mediaPlayer.setLooping(false);
         mediaPlayer.start();

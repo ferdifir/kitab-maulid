@@ -23,7 +23,10 @@ import com.sherdle.webtoapp.drawer.menu.MenuItemCallback;
 import com.sherdle.webtoapp.drawer.menu.SimpleMenu;
 import com.sherdle.webtoapp.service.AlarmReceiver;
 import com.sherdle.webtoapp.service.LocationService;
+import com.sherdle.webtoapp.service.alarm.AsrAlarmManager;
 import com.sherdle.webtoapp.service.api.response.schedule.Timings;
+import com.sherdle.webtoapp.service.premium.AdMobHandler;
+import com.sherdle.webtoapp.service.premium.PremiumManager;
 import com.sherdle.webtoapp.util.ThemeUtils;
 import com.sherdle.webtoapp.utils.Helper;
 import com.sherdle.webtoapp.viewmodel.MainViewModel;
@@ -127,6 +130,9 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback 
     private MainViewModel viewModel;
     private WorkManager workManager;
     private SharedPreferences sharedPreference;
+    private PremiumManager premiumManager;
+    private AdMobHandler adMobHandler;
+    private AdView adView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -252,11 +258,11 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback 
             MobileAds.setRequestConfiguration(configuration);
 
             // Look up the AdView as a resource and load a request.
-            AdView adView = (AdView) findViewById(R.id.adView);
+            adView = (AdView) findViewById(R.id.adView);
             AdRequest adRequest = new AdRequest.Builder().build();
             adView.loadAd(adRequest);
         } else {
-            AdView adView = (AdView) findViewById(R.id.adView);
+            adView = (AdView) findViewById(R.id.adView);
             adView.setVisibility(View.GONE);
         }
         if (getResources().getString(R.string.ad_interstitial_id).length() > 0 && Config.INTERSTITIAL_INTERVAL > 0){
@@ -319,6 +325,8 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback 
             }
         }
 
+        premiumManager = new PremiumManager(this, () -> adView.setVisibility(View.GONE));
+
     }
 
     private void initSchedule() {
@@ -348,23 +356,7 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback 
 
     private void setAlarm() {
         Toast.makeText(this, "Data jadwal sholat berhasil didapat", Toast.LENGTH_SHORT).show();
-        viewModel.prayers.observe(this, prayerEntity -> {
-            String next = findNextSchedule(Helper.getPrayerList(prayerEntity));
-            int jam = Integer.parseInt(next.substring(0,2));
-            int menit = Integer.parseInt(next.substring(3,5));
-            AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-
-            Calendar calendar = Calendar.getInstance();
-            calendar.setTimeInMillis(System.currentTimeMillis());
-            calendar.set(Calendar.HOUR_OF_DAY, jam);
-            calendar.set(Calendar.MINUTE, menit);
-            calendar.set(Calendar.SECOND, 0);
-
-            Intent intent = new Intent(this, AlarmReceiver.class);
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
-
-            alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
-        });
+        viewModel.prayers.observe(this, prayerEntity -> Helper.setAlarm(MainActivity.this, prayerEntity));
     }
 
     public static String findNextSchedule(List<String> jadwalSholat) {

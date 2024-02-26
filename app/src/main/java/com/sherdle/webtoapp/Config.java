@@ -88,6 +88,7 @@ public class Config {
     //The frequency in which interstitial ads are shown
     public static final int INTERSTITIAL_INTERVAL = 2;
     public static final String ADZAN_TIME_API = "http://api.aladhan.com/v1/calendar/";
+    public static final String PREFS_KEY = "prayer_alarm";
     public static final String IMSAK_NOTIFICATION = "imsak_notification";
     public static final String SUBUH_NOTIFICATION = "subuh_notification";
     public static final String TERBIT_NOTIFICATION = "terbit_notification";
@@ -97,4 +98,12 @@ public class Config {
     public static final String ISYA_NOTIFICATION = "isya_notification";
     public static final String LAT_KEY = "latitudekey";
     public static final String LON_KEY = "longitudekey";
+    public static final String IMSAK_URI = "sound_imsak_path";
+    public static final String SUBUH_URI = "sound_subuh_path";
+    public static final String TERBIT_URI = "sound_terbit_path";
+    public static final String DHUHUR_URI = "sound_dhuhur_path";
+    public static final String ASHR_URI = "sound_ashr_path";
+    public static final String MAGHRIB_URI = "sound_maghrib_path";
+    public static final String ISYA_URI = "sound_isya_path";
+
 }

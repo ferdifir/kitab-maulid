@@ -29,12 +29,10 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.onesignal.OneSignal;
 import com.sherdle.webtoapp.App;
 import com.sherdle.webtoapp.Config;
 import com.sherdle.webtoapp.activity.PrayerActivity;
-import com.sherdle.webtoapp.activity.QiblatActivity;
-import com.sherdle.webtoapp.service.PremiumManager;
+import com.sherdle.webtoapp.service.premium.PremiumManager;
 import com.sherdle.webtoapp.util.GetFileInfo;
 import com.sherdle.webtoapp.R;
 import com.sherdle.webtoapp.widget.webview.WebToAppChromeClient;
@@ -85,7 +83,6 @@ public class WebFragment extends Fragment implements AdvancedWebView.Listener, S
 
     @Override
     public void onPremiumPurchased() {
-        // Disini nanti code untuk menghilangkan iklan
         Log.d("TAG", "Premium purchased!");
     }
 

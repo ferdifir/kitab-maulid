@@ -1,22 +1,17 @@
 package com.sherdle.webtoapp.viewmodel;
 
 import android.app.Application;
-import android.util.Log;
 
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.ViewModel;
 
 import com.sherdle.webtoapp.service.api.ApiService;
 import com.sherdle.webtoapp.service.api.RetrofitClient;
 import com.sherdle.webtoapp.service.api.response.date.HijrDateResponse;
-import com.sherdle.webtoapp.service.api.response.schedule.Timings;
 import com.sherdle.webtoapp.service.db.AppDatabase;
 import com.sherdle.webtoapp.service.db.PrayerEntity;
-import com.sherdle.webtoapp.utils.Helper;
 
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -29,11 +24,9 @@ import java.util.concurrent.Executors;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import retrofit2.Retrofit;
 
 public class PrayerViewModel extends AndroidViewModel {
     private final MutableLiveData<String> hijrDate = new MutableLiveData<>();
-
     private final ApiService service;
     private final AppDatabase database;
     private final Executor executor;

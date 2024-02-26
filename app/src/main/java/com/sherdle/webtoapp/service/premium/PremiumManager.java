@@ -1,4 +1,4 @@
-package com.sherdle.webtoapp.service;
+package com.sherdle.webtoapp.service.premium;
 
 import android.app.Activity;
 import android.util.Log;
