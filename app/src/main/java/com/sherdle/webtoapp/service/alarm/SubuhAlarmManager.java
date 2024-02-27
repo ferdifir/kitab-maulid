@@ -25,6 +25,7 @@ import com.sherdle.webtoapp.service.NotificationSoundService;
 import com.sherdle.webtoapp.service.StopServiceReceiver;
 import com.sherdle.webtoapp.service.db.AppDatabase;
 import com.sherdle.webtoapp.service.db.PrayerEntity;
+import com.sherdle.webtoapp.utils.Helper;
 
 import java.util.Calendar;
 import java.util.List;
@@ -43,11 +44,11 @@ public class SubuhAlarmManager extends BroadcastReceiver {
 
         Intent intent = new Intent(context, MainActivity.class);
         Intent serviceIntent = new Intent(context, NotificationSoundService.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, Config.SUBUH_REQ_CODE, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         Intent stopIntent = new Intent(context, StopServiceReceiver.class);
         stopIntent.setAction("ACTION_STOP_SERVICE");
-        PendingIntent pStopSelf = PendingIntent.getBroadcast(context, 0, stopIntent, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent pStopSelf = PendingIntent.getBroadcast(context, Config.SUBUH_REQ_CODE, stopIntent, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         Uri soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
         Uri alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
@@ -69,7 +70,6 @@ public class SubuhAlarmManager extends BroadcastReceiver {
                         .setContentTitle("Sholat Subuh")
                         .setContentText("Sudah masuk waktu sholat Subuh")
                         .setContentIntent(pendingIntent)
-                        .setSound(soundUri)
                         .setPriority(NotificationCompat.PRIORITY_MAX)
                         .addAction(action)
                         .setAutoCancel(true);
@@ -80,7 +80,8 @@ public class SubuhAlarmManager extends BroadcastReceiver {
                     notificationManager.createNotificationChannel(channel);
                 }
                 NotificationManager firstNotifManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-                firstNotifManager.notify(1, firstbuilder.build());
+                firstNotifManager.notify(prefs.getInt(Config.NOTIF_ID_KEY, 1), firstbuilder.build());
+                prefs.edit().putInt(Config.NOTIF_ID_KEY, prefs.getInt(Config.NOTIF_ID_KEY, 1) + 1);
                 break;
             case 1:
                 serviceIntent.setData(alarmUri);
@@ -90,7 +91,6 @@ public class SubuhAlarmManager extends BroadcastReceiver {
                         .setContentTitle("Sholat Subuh")
                         .setContentText("Sudah masuk waktu sholat Subuh")
                         .setContentIntent(pendingIntent)
-                        .setSound(soundUri)
                         .setPriority(NotificationCompat.PRIORITY_MAX)
                         .addAction(action)
                         .setAutoCancel(true);
@@ -101,7 +101,8 @@ public class SubuhAlarmManager extends BroadcastReceiver {
                     notificationManager.createNotificationChannel(channel);
                 }
                 NotificationManager firstnotificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-                firstnotificationManager.notify(1, secondbuilder.build());
+                firstnotificationManager.notify(prefs.getInt(Config.NOTIF_ID_KEY, 1), secondbuilder.build());
+                prefs.edit().putInt(Config.NOTIF_ID_KEY, prefs.getInt(Config.NOTIF_ID_KEY, 1) + 1);
                 break;
             case 2:
                 serviceIntent.setData(soundUri);
@@ -111,7 +112,6 @@ public class SubuhAlarmManager extends BroadcastReceiver {
                         .setContentTitle("Sholat Subuh")
                         .setContentText("Sudah masuk waktu sholat Subuh")
                         .setContentIntent(pendingIntent)
-                        .setSound(soundUri)
                         .setPriority(NotificationCompat.PRIORITY_MAX)
                         .setAutoCancel(true);
 
@@ -121,7 +121,8 @@ public class SubuhAlarmManager extends BroadcastReceiver {
                     secondnotificationManager.createNotificationChannel(channel);
                 }
                 NotificationManager secondNotifManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-                secondNotifManager.notify(1, thirdbuilder.build());
+                secondNotifManager.notify(prefs.getInt(Config.NOTIF_ID_KEY, 1), thirdbuilder.build());
+                prefs.edit().putInt(Config.NOTIF_ID_KEY, prefs.getInt(Config.NOTIF_ID_KEY, 1) + 1);
                 break;
             case 3:
                 NotificationCompat.Builder fourthbuilder = new NotificationCompat.Builder(context, "channel_id")
@@ -129,7 +130,6 @@ public class SubuhAlarmManager extends BroadcastReceiver {
                         .setContentTitle("Sholat Subuh")
                         .setContentText("Sudah masuk waktu sholat Subuh")
                         .setContentIntent(pendingIntent)
-                        .setSound(soundUri)
                         .setPriority(NotificationCompat.PRIORITY_MAX)
                         .setAutoCancel(true);
 
@@ -139,11 +139,10 @@ public class SubuhAlarmManager extends BroadcastReceiver {
                     notificationManager.createNotificationChannel(channel);
                 }
                 NotificationManager thirdNotifManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-                thirdNotifManager.notify(1, fourthbuilder.build());
+                thirdNotifManager.notify(prefs.getInt(Config.NOTIF_ID_KEY, 1), fourthbuilder.build());
+                prefs.edit().putInt(Config.NOTIF_ID_KEY, prefs.getInt(Config.NOTIF_ID_KEY, 1) + 1);
                 break;
             case 4:
-                Log.d("Notification", "Sudah Masuk Waktu Sholat Subuh");
-                break;
             default:
                 Log.d("Notification", "Sudah Masuk Waktu Sholat Subuh");
                 break;
@@ -153,7 +152,7 @@ public class SubuhAlarmManager extends BroadcastReceiver {
     private void setNextAlarm(Context context) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         Intent intent = new Intent(context, SubuhAlarmManager.class);
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(context, Config.SUBUH_REQ_CODE, intent, PendingIntent.FLAG_IMMUTABLE);
 
         AppDatabase db = AppDatabase.getInstance(context);
         Executor executor = Executors.newSingleThreadExecutor();
@@ -161,14 +160,11 @@ public class SubuhAlarmManager extends BroadcastReceiver {
             @Override
             public void run() {
                 List<PrayerEntity> prayerEntities = db.prayerDao().getPrayersByDate(getTomorrowDate());
-                int jam = Integer.parseInt(prayerEntities.get(0).getFajr().substring(0,2));
-                int menit = Integer.parseInt(prayerEntities.get(0).getFajr().substring(3));
-                Calendar calendar = Calendar.getInstance();
-                calendar.setTimeInMillis(System.currentTimeMillis());
-                calendar.set(Calendar.HOUR_OF_DAY, jam);
-                calendar.set(Calendar.MINUTE, menit);
 
-                alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), pendingIntent);
+                alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        Helper.getTimeMillis(prayerEntities.get(0).getFajr(), true),
+                        pendingIntent);
             }
         });
     }

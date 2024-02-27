@@ -356,7 +356,15 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback 
 
     private void setAlarm() {
         Toast.makeText(this, "Data jadwal sholat berhasil didapat", Toast.LENGTH_SHORT).show();
-        viewModel.prayers.observe(this, prayerEntity -> Helper.setAlarm(MainActivity.this, prayerEntity));
+        viewModel.prayers.observe(this, prayerEntity -> {
+            Helper.setAlarm(MainActivity.this, prayerEntity, 0);
+            Helper.setAlarm(MainActivity.this, prayerEntity, 1);
+            Helper.setAlarm(MainActivity.this, prayerEntity, 2);
+            Helper.setAlarm(MainActivity.this, prayerEntity, 3);
+            Helper.setAlarm(MainActivity.this, prayerEntity, 4);
+            Helper.setAlarm(MainActivity.this, prayerEntity, 5);
+            Helper.setAlarm(MainActivity.this, prayerEntity, 6);
+        });
     }
 
     public static String findNextSchedule(List<String> jadwalSholat) {

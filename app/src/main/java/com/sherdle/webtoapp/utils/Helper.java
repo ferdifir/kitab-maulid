@@ -5,6 +5,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 
+import com.sherdle.webtoapp.Config;
 import com.sherdle.webtoapp.service.alarm.AsrAlarmManager;
 import com.sherdle.webtoapp.service.alarm.DhuhurAlarmManager;
 import com.sherdle.webtoapp.service.alarm.ImsakAlarmManager;
@@ -120,50 +121,61 @@ public class Helper {
         }
     }
 
-    public static void setAlarm(Context context, PrayerEntity prayerEntity) {
+    public static void setAlarm(Context context, PrayerEntity prayerEntity, int prayerIndex) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 
-        // Intent dan PendingIntent untuk Imsak
-        Intent imsakIntent = new Intent(context, ImsakAlarmManager.class);
-        PendingIntent imsakPendingIntent = PendingIntent.getBroadcast(context, 0, imsakIntent, PendingIntent.FLAG_IMMUTABLE);
-        alarmManager.set(AlarmManager.RTC_WAKEUP, getTimeMillis(prayerEntity.getImsak()), imsakPendingIntent);
+        Intent intent;
+        PendingIntent pendingIntent;
 
-        // Intent dan PendingIntent untuk Subuh
-        Intent subuhIntent = new Intent(context, SubuhAlarmManager.class);
-        PendingIntent subuhPendingIntent = PendingIntent.getBroadcast(context, 1, subuhIntent, PendingIntent.FLAG_IMMUTABLE);
-        alarmManager.set(AlarmManager.RTC_WAKEUP, getTimeMillis(prayerEntity.getFajr()), subuhPendingIntent);
-
-        // Intent dan PendingIntent untuk Terbit
-        Intent terbitIntent = new Intent(context, TerbitAlarmManager.class);
-        PendingIntent terbitPendingIntent = PendingIntent.getBroadcast(context, 2, terbitIntent, PendingIntent.FLAG_IMMUTABLE);
-        alarmManager.set(AlarmManager.RTC_WAKEUP, getTimeMillis(prayerEntity.getSunrise()), terbitPendingIntent);
-
-        // Intent dan PendingIntent untuk Dhuhur
-        Intent dhuhurIntent = new Intent(context, DhuhurAlarmManager.class);
-        PendingIntent dhuhurPendingIntent = PendingIntent.getBroadcast(context, 3, dhuhurIntent, PendingIntent.FLAG_IMMUTABLE);
-        alarmManager.set(AlarmManager.RTC_WAKEUP, getTimeMillis(prayerEntity.getDhuhr()), dhuhurPendingIntent);
-
-        // Intent dan PendingIntent untuk Asr
-        Intent asrIntent = new Intent(context, AsrAlarmManager.class);
-        PendingIntent asrPendingIntent = PendingIntent.getBroadcast(context, 4, asrIntent, PendingIntent.FLAG_IMMUTABLE);
-        alarmManager.set(AlarmManager.RTC_WAKEUP, getTimeMillis(prayerEntity.getAsr()), asrPendingIntent);
-
-        // Intent dan PendingIntent untuk Maghrib
-        Intent maghribIntent = new Intent(context, MaghribAlarmManager.class);
-        PendingIntent maghribPendingIntent = PendingIntent.getBroadcast(context, 5, maghribIntent, PendingIntent.FLAG_IMMUTABLE);
-        alarmManager.set(AlarmManager.RTC_WAKEUP, getTimeMillis(prayerEntity.getMaghrib()), maghribPendingIntent);
-
-        // Intent dan PendingIntent untuk Isya
-        Intent isyaIntent = new Intent(context, IsyaAlarmManager.class);
-        PendingIntent isyaPendingIntent = PendingIntent.getBroadcast(context, 6, isyaIntent, PendingIntent.FLAG_IMMUTABLE);
-        alarmManager.set(AlarmManager.RTC_WAKEUP, getTimeMillis(prayerEntity.getIsha()), isyaPendingIntent);
+        switch (prayerIndex) {
+            case 0:
+                intent = new Intent(context, ImsakAlarmManager.class);
+                pendingIntent = PendingIntent.getBroadcast(context, Config.IMSAK_REQ_CODE, intent, PendingIntent.FLAG_IMMUTABLE);
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, getTimeMillis(prayerEntity.getImsak(), false), pendingIntent);
+                break;
+            case 1:
+                intent = new Intent(context, SubuhAlarmManager.class);
+                pendingIntent = PendingIntent.getBroadcast(context, Config.SUBUH_REQ_CODE, intent, PendingIntent.FLAG_IMMUTABLE);
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, getTimeMillis(prayerEntity.getFajr(),false), pendingIntent);
+                break;
+            case 2:
+                intent = new Intent(context, TerbitAlarmManager.class);
+                pendingIntent = PendingIntent.getBroadcast(context, Config.TERBIT_REQ_CODE, intent, PendingIntent.FLAG_IMMUTABLE);
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, getTimeMillis(prayerEntity.getSunrise(),false), pendingIntent);
+                break;
+            case 3:
+                intent = new Intent(context, DhuhurAlarmManager.class);
+                pendingIntent = PendingIntent.getBroadcast(context, Config.DHUHUR_REQ_CODE, intent, PendingIntent.FLAG_IMMUTABLE);
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, getTimeMillis(prayerEntity.getDhuhr(),false), pendingIntent);
+                break;
+            case 4:
+                intent = new Intent(context, AsrAlarmManager.class);
+                pendingIntent = PendingIntent.getBroadcast(context, Config.ASHAR_REQ_CODE, intent, PendingIntent.FLAG_IMMUTABLE);
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, getTimeMillis(prayerEntity.getAsr(),false), pendingIntent);
+                break;
+            case 5:
+                intent = new Intent(context, MaghribAlarmManager.class);
+                pendingIntent = PendingIntent.getBroadcast(context, Config.MAGHRIB_REQ_CODE, intent, PendingIntent.FLAG_IMMUTABLE);
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, getTimeMillis(prayerEntity.getMaghrib(),false), pendingIntent);
+                break;
+            case 6:
+                intent = new Intent(context, IsyaAlarmManager.class);
+                pendingIntent = PendingIntent.getBroadcast(context, Config.ISYA_REQ_CODE, intent, PendingIntent.FLAG_IMMUTABLE);
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, getTimeMillis(prayerEntity.getIsha(),false), pendingIntent);
+                break;
+            default:
+                // Handle default case if needed
+                break;
+        }
     }
 
-    private static long getTimeMillis(String time) {
+    public static long getTimeMillis(String time, boolean tomorrow) {
         int jam = Integer.parseInt(time.substring(0,2));
         int menit = Integer.parseInt(time.substring(3,5));
         Calendar calendar = Calendar.getInstance();
-        calendar.setTimeInMillis(System.currentTimeMillis());
+        if (tomorrow) {
+            calendar.add(Calendar.DAY_OF_YEAR, 1);
+        }
         calendar.set(Calendar.HOUR_OF_DAY, jam);
         calendar.set(Calendar.MINUTE, menit);
         calendar.set(Calendar.SECOND, 0);

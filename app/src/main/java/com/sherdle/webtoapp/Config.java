@@ -89,6 +89,7 @@ public class Config {
     public static final int INTERSTITIAL_INTERVAL = 2;
     public static final String ADZAN_TIME_API = "http://api.aladhan.com/v1/calendar/";
     public static final String PREFS_KEY = "prayer_alarm";
+    public static final String NOTIF_ID_KEY = "notif_key";
     public static final String IMSAK_NOTIFICATION = "imsak_notification";
     public static final String SUBUH_NOTIFICATION = "subuh_notification";
     public static final String TERBIT_NOTIFICATION = "terbit_notification";
@@ -105,5 +106,13 @@ public class Config {
     public static final String ASHR_URI = "sound_ashr_path";
     public static final String MAGHRIB_URI = "sound_maghrib_path";
     public static final String ISYA_URI = "sound_isya_path";
+    public static final int IMSAK_REQ_CODE = 0;
+    public static final int SUBUH_REQ_CODE = 1;
+    public static final int TERBIT_REQ_CODE = 2;
+    public static final int DHUHUR_REQ_CODE = 3;
+    public static final int ASHAR_REQ_CODE = 4;
+    public static final int MAGHRIB_REQ_CODE = 5;
+    public static final int ISYA_REQ_CODE = 6;
+
 
 }

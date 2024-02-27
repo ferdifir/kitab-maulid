@@ -13,6 +13,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-feature android:name="android.hardware.sensor.accelerometer" />
     <uses-feature android:name="android.hardware.sensor.compass" />
 
@@ -84,6 +85,13 @@
         <receiver android:name=".service.StopServiceReceiver" />
 
         <receiver android:name=".service.AlarmReceiver" />
+        <receiver android:name=".service.alarm.AsrAlarmManager" />
+        <receiver android:name=".service.alarm.DhuhurAlarmManager"/>
+        <receiver android:name=".service.alarm.ImsakAlarmManager" />
+        <receiver android:name=".service.alarm.IsyaAlarmManager" />
+        <receiver android:name=".service.alarm.MaghribAlarmManager" />
+        <receiver android:name=".service.alarm.SubuhAlarmManager" />
+        <receiver android:name=".service.alarm.TerbitAlarmManager" />
 
         <service android:name=".service.NotificationSoundService"/>
     </application>
