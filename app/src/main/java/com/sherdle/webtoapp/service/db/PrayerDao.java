@@ -13,5 +13,8 @@ public interface PrayerDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertPrayer(List<PrayerEntity> prayers);
+
+    @Query("DELETE FROM prayers")
+    void deleteAllPrayers();
 }
 

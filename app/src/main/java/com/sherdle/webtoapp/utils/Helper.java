@@ -4,6 +4,8 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.media.RingtoneManager;
+import android.net.Uri;
 
 import com.sherdle.webtoapp.Config;
 import com.sherdle.webtoapp.service.alarm.AsrAlarmManager;
@@ -21,6 +23,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -180,5 +183,47 @@ public class Helper {
         calendar.set(Calendar.MINUTE, menit);
         calendar.set(Calendar.SECOND, 0);
         return calendar.getTimeInMillis();
+    }
+
+    public static long getDelayNextPrayer(PrayerEntity todaySchedule, String imsakTomorrow) {
+        boolean isAfterIsya = Helper.isIsya(todaySchedule.getIsha());
+        LocalTime now = LocalTime.now();
+        LocalTime midnight = LocalTime.of(23, 59);
+        if (isAfterIsya) {
+            long toImsak = LocalTime.MIDNIGHT.until(
+                    LocalTime.of(
+                            Integer.parseInt(imsakTomorrow.substring(0,2)),
+                            Integer.parseInt(imsakTomorrow.substring(3))),
+                    ChronoUnit.MILLIS
+            );
+            if (now.isBefore(midnight)) {
+                long toMidnight = now.until(midnight, ChronoUnit.MILLIS);
+                return toMidnight + toImsak;
+            } else {
+                return toImsak;
+            }
+        } else {
+            List<String> prayerList = Helper.getPrayerList(todaySchedule);
+            for (int i = 0; i < prayerList.size(); i++) {
+                int hour = Integer.parseInt(prayerList.get(i).substring(0, 2));
+                int minute = Integer.parseInt(prayerList.get(i).substring(3));
+                LocalTime prayerSchedule = LocalTime.of(hour, minute);
+                if (prayerSchedule.isAfter(now)) {
+                    return now.until(prayerSchedule, ChronoUnit.MILLIS);
+                }
+            }
+            return 0L;
+        }
+    }
+
+    public static String getSoundUri(int index) {
+        switch (index) {
+            case 1:
+                return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM).toString();
+            case 2:
+                return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION).toString();
+            default:
+                return "";
+        }
     }
 }

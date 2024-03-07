@@ -1,23 +1,39 @@
 package com.sherdle.webtoapp.activity;
 
+import android.app.Activity;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.location.Location;
+import android.media.MediaPlayer;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.util.Log;
 import android.view.Menu;
+import android.view.MenuItem;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import androidx.work.OneTimeWorkRequest;
+import androidx.work.WorkManager;
 
+import com.google.android.gms.location.LocationAvailability;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationResult;
 import com.sherdle.webtoapp.Config;
 import com.sherdle.webtoapp.R;
 import com.sherdle.webtoapp.service.LocationService;
@@ -25,14 +41,17 @@ import com.sherdle.webtoapp.service.db.PrayerEntity;
 import com.sherdle.webtoapp.service.premium.AdMobHandler;
 import com.sherdle.webtoapp.service.premium.PremiumManager;
 import com.sherdle.webtoapp.service.sensor.BearingSensorManager;
+import com.sherdle.webtoapp.service.woker.PrayerTimeWorker;
 import com.sherdle.webtoapp.utils.Helper;
 import com.sherdle.webtoapp.viewmodel.PrayerViewModel;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class PrayerActivity extends AppCompatActivity {
 
@@ -61,11 +80,13 @@ public class PrayerActivity extends AppCompatActivity {
     private static final double KAABA_LONGITUDE = 39.8262;
     private AdMobHandler adMobHandler;
     private PremiumManager premiumManager;
+    private Location location;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_prayer);
+        bearingSensorManager = new BearingSensorManager(this);
         prayerViewModel = new ViewModelProvider(this).get(PrayerViewModel.class);
         locationService = new LocationService(this);
         sharedPreferences = getSharedPreferences(Config.PREFS_KEY, MODE_PRIVATE);
@@ -81,7 +102,7 @@ public class PrayerActivity extends AppCompatActivity {
 
         initView();
         getUserLocation();
-        initToolbar();
+
         getDate();
         initButton();
         getPrayerSchedule();
@@ -136,6 +157,8 @@ public class PrayerActivity extends AppCompatActivity {
     }
 
     private void initButton() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.setType("*/*");
         ivAlarmImsak.setOnClickListener(v -> {
             showRadioButtonDialog(
                     "Notifikasi Imsak",
@@ -203,10 +226,25 @@ public class PrayerActivity extends AppCompatActivity {
                     (dialog, which) -> {
                         sharedPreferences.edit().putInt(Config.ISYA_NOTIFICATION, which).apply();
                         initAlarmNotif();
+                        if (which == 1) {
+                            fileActivityResultLauncher.launch(intent);
+                        }
                     }
             );
         });
     }
+
+    ActivityResultLauncher<Intent> fileActivityResultLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            (ActivityResultCallback<ActivityResult>) result -> {
+                if (result.getResultCode() == Activity.RESULT_OK) {
+                    Intent data = result.getData();
+
+                    double lat = data.getDoubleExtra("lat", 0.0);
+                    double lon = data.getDoubleExtra("lon", 0.0);
+                    setNewData(lat, lon);
+                }
+            });
 
     public void showRadioButtonDialog(String title, int checkedItem, DialogInterface.OnClickListener listener) {
         String[] items = title.contains("Imsak") || title.contains("Terbit") ?
@@ -224,7 +262,6 @@ public class PrayerActivity extends AppCompatActivity {
     }
 
     private void getQiblat(double latitude, double longitude) {
-        bearingSensorManager = new BearingSensorManager(this);
         bearingSensorManager.setOnBearingChangeListener(new BearingSensorManager.OnBearingChangeListener() {
             @Override
             public void onBearingChanged(float bearing) {
@@ -253,13 +290,28 @@ public class PrayerActivity extends AppCompatActivity {
     }
 
     private void getUserLocation() {
-        Location location = locationService.getLastKnownLocation();
-        if (location != null) {
-            String address = locationService.getAddressFromCoordinates(location.getLatitude(), location.getLongitude());
-            currentAddress = Helper.getStringBetweenCommas(address, 3, 4);
-            tvLocation.setText(currentAddress);
-            getQiblat(location.getLatitude(), location.getLongitude());
-        }
+        locationService.requestLocationUpdates();
+        locationService.getLastKnownLocation(new LocationCallback() {
+            @Override
+            public void onLocationAvailability(@NonNull LocationAvailability locationAvailability) {
+                super.onLocationAvailability(locationAvailability);
+            }
+
+            @Override
+            public void onLocationResult(@NonNull LocationResult locationResult) {
+                super.onLocationResult(locationResult);
+                location = locationResult.getLastLocation();
+                if (location != null) {
+                    sharedPreferences.edit().putFloat(Config.LAT_KEY, (float) location.getLatitude()).apply();
+                    sharedPreferences.edit().putFloat(Config.LON_KEY, (float) location.getLongitude()).apply();
+                    String address = locationService.getAddressFromCoordinates(location.getLatitude(), location.getLongitude());
+                    currentAddress = Helper.getStringBetweenCommas(address, 3, 4);
+                    tvLocation.setText(currentAddress);
+                    initToolbar();
+                    getQiblat(location.getLatitude(), location.getLongitude());
+                }
+            }
+        });
     }
 
     private void getDate() {
@@ -348,6 +400,75 @@ public class PrayerActivity extends AppCompatActivity {
         getMenuInflater().inflate(R.menu.activity_prayer_menu, menu);
         return super.onCreateOptionsMenu(menu);
     }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.location) {
+            showLocationOptionDialog();
+        } else if (item.getItemId() == R.id.calendar) {
+            Intent intent = new Intent(this, MapActivity.class);
+            startActivity(intent);
+        } else if (item.getItemId() == R.id.settings) {
+            Uri soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+            Log.d("Sound URI", soundUri.toString());
+            MediaPlayer mediaPlayer = new MediaPlayer();
+            try {
+                mediaPlayer.setDataSource(PrayerActivity.this, soundUri);
+                mediaPlayer.setOnPreparedListener(MediaPlayer::start);
+                mediaPlayer.prepareAsync();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void showLocationOptionDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Pilih Lokasi");
+        final String[] items = {"Gunakan Posisi Saya Sekarang", "Pilih Secara Manual dengan Map"};
+        builder.setItems(items, (dialog, which) -> {
+            switch (which) {
+                case 0:
+                    double lat = location.getLatitude();
+                    double lon = location.getLongitude();
+                    setNewData(lat, lon);
+                    break;
+                case 1:
+                    Intent intent = new Intent(PrayerActivity.this, MapActivity.class);
+                    mapActivityResultLauncher.launch(intent);
+                    break;
+            }
+        });
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    private void setNewData(double lat, double lon) {
+        prayerViewModel.deleteAllData();
+        prayerViewModel.getPrayerSchedule(lat, lon);
+        prayerViewModel.prayers.observe(this, prayerEntity -> {
+            WorkManager.getInstance(PrayerActivity.this).cancelAllWorkByTag(Config.PRAYER_WORKER_TAG);
+            long delay = Helper.getDelayNextPrayer(prayerEntity.get(0),prayerEntity.get(1).getImsak());
+            OneTimeWorkRequest workRequest = new OneTimeWorkRequest.Builder(PrayerTimeWorker.class)
+                    .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                    .addTag(Config.PRAYER_WORKER_TAG)
+                    .build();
+            WorkManager.getInstance(PrayerActivity.this).enqueue(workRequest);
+            PrayerActivity.this.recreate();
+        });
+    }
+
+    ActivityResultLauncher<Intent> mapActivityResultLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            (ActivityResultCallback<ActivityResult>) result -> {
+                if (result.getResultCode() == Activity.RESULT_OK) {
+                    Intent data = result.getData();
+                    double lat = data.getDoubleExtra("lat", 0.0);
+                    double lon = data.getDoubleExtra("lon", 0.0);
+                    setNewData(lat, lon);
+                }
+            });
 
     private void updateCountdownText(long millisUntilFinished, int prayer) {
         int minutes = (int) (millisUntilFinished / 1000) / 60;

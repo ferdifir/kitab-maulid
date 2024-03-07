@@ -27,7 +27,7 @@
         android:usesCleartextTraffic="true"
         tools:ignore="GoogleAppIndexingWarning">
         <activity
-            android:name=".activity.QiblatActivity"
+            android:name=".activity.MapActivity"
             android:exported="false" />
         <activity
             android:name=".activity.PrayerActivity"

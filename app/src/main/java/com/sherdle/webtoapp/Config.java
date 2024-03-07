@@ -113,6 +113,6 @@ public class Config {
     public static final int ASHAR_REQ_CODE = 4;
     public static final int MAGHRIB_REQ_CODE = 5;
     public static final int ISYA_REQ_CODE = 6;
-
-
+    public static final String PRAYER_WORKER_TAG = "prayer_tag";
+    public static final String NOTIF_SOUND_URI = "content://settings/system/notification_sound";
 }

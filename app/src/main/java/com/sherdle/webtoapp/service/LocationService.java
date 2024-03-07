@@ -6,14 +6,20 @@ import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -22,41 +28,31 @@ public class LocationService {
     private static final String TAG = LocationService.class.getSimpleName();
 
     private final Context context;
-    private final LocationManager locationManager;
-    private final LocationListener locationListener;
+    private final FusedLocationProviderClient fusedLocationProviderClient;
+    private final LocationCallback locationCallback;
 
     public LocationService(Context context) {
         this.context = context;
-        this.locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-        this.locationListener = new MyLocationListener();
+        this.fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context);
+        this.locationCallback = new MyLocationCallback();
     }
 
-    public Location getLastKnownLocation() {
-        // Mendapatkan lokasi terakhir yang diketahui dari provider
+    public void getLastKnownLocation(LocationCallback callback) {
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             Log.e(TAG, "Permission not granted");
-            return null;
+            return;
         }
 
-        Location lastKnownLocationGPS = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-        Location lastKnownLocationNetwork = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-
-        // Memilih lokasi yang lebih akurat
-        if (lastKnownLocationGPS != null && lastKnownLocationNetwork != null) {
-            if (lastKnownLocationGPS.getAccuracy() <= lastKnownLocationNetwork.getAccuracy()) {
-                return lastKnownLocationGPS;
+        fusedLocationProviderClient.getLastLocation().addOnSuccessListener(location -> {
+            if (location != null) {
+                List<Location> locations = new ArrayList<>();
+                locations.add(location);
+                callback.onLocationResult(LocationResult.create(locations));
             } else {
-                return lastKnownLocationNetwork;
+                Log.e(TAG, "Last known location is null");
             }
-        } else if (lastKnownLocationGPS != null) {
-            return lastKnownLocationGPS;
-        } else if (lastKnownLocationNetwork != null) {
-            return lastKnownLocationNetwork;
-        } else {
-            Log.e(TAG, "Last known location is null");
-            return null;
-        }
+        });
     }
 
     public String getAddressFromCoordinates(double latitude, double longitude) {
@@ -82,43 +78,34 @@ public class LocationService {
     }
 
     public void requestLocationUpdates() {
-        // Meminta pembaruan lokasi dari provider
         if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             Log.e(TAG, "Permission not granted");
             return;
         }
 
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener);
+        LocationRequest locationRequest = LocationRequest.create();
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationRequest.setInterval(0);
+        locationRequest.setFastestInterval(0);
+
+        fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, null);
     }
 
     public void removeLocationUpdates() {
-        // Menghentikan pembaruan lokasi
-        locationManager.removeUpdates(locationListener);
+        fusedLocationProviderClient.removeLocationUpdates(locationCallback);
     }
 
-    private static class MyLocationListener implements LocationListener {
+    private static class MyLocationCallback extends LocationCallback {
 
         @Override
-        public void onLocationChanged(Location location) {
-            // Aksi yang diambil saat lokasi berubah
-            Log.d(TAG, "Location changed: " + location.getLatitude() + ", " + location.getLongitude());
-        }
-
-        @Override
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-            // Aksi yang diambil saat status provider berubah
-        }
-
-        @Override
-        public void onProviderEnabled(String provider) {
-            // Aksi yang diambil saat provider diaktifkan
-        }
-
-        @Override
-        public void onProviderDisabled(String provider) {
-            // Aksi yang diambil saat provider dinonaktifkan
+        public void onLocationResult(LocationResult locationResult) {
+            super.onLocationResult(locationResult);
+            if (locationResult != null) {
+                for (Location location : locationResult.getLocations()) {
+                    Log.d(TAG, "Location changed: " + location.getLatitude() + ", " + location.getLongitude());
+                }
+            }
         }
     }
 }

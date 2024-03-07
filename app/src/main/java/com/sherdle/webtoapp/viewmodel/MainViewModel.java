@@ -2,6 +2,7 @@ package com.sherdle.webtoapp.viewmodel;
 
 import android.app.Application;
 import android.util.Log;
+import android.util.Pair;
 
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.MutableLiveData;
@@ -34,6 +35,7 @@ public class MainViewModel extends AndroidViewModel {
     private final Executor executor = Executors.newSingleThreadExecutor();
     public final MutableLiveData<DataStatus> dataStatus = new MutableLiveData<>();
     public final MutableLiveData<PrayerEntity> prayers = new MutableLiveData<>();
+    public final MutableLiveData<Pair<PrayerEntity, String>> dataSchedule = new MutableLiveData<>();
 
     public MainViewModel(Application application) {
         super(application);
@@ -91,7 +93,10 @@ public class MainViewModel extends AndroidViewModel {
                                 db.prayerDao().insertPrayer(prayerEntities);
                                 dataStatus.postValue(DataStatus.SUCCESS);
                                 List<PrayerEntity> prayerEntityList = db.prayerDao().getPrayersByDate(getFormattedDate(Calendar.getInstance().getTime()));
-                                prayers.postValue(prayerEntityList.get(0));
+                                Calendar tomorrow = Calendar.getInstance();
+                                tomorrow.add(Calendar.DAY_OF_YEAR, 1);
+                                String tomorrowImsak = db.prayerDao().getPrayersByDate(getFormattedDate(tomorrow.getTime())).get(0).getImsak();
+                                dataSchedule.postValue(new Pair<>(prayerEntityList.get(0), tomorrowImsak));
                             });
                         } else {
                             Log.d("MainViewModel", String.valueOf(response.errorBody()));

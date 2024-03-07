@@ -12,6 +12,9 @@ import com.google.android.gms.ads.initialization.InitializationStatus;
 import com.google.android.gms.ads.initialization.OnInitializationCompleteListener;
 import com.google.android.gms.ads.interstitial.InterstitialAd;
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
+import com.google.android.gms.location.LocationAvailability;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.tabs.TabLayout;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -27,6 +30,7 @@ import com.sherdle.webtoapp.service.alarm.AsrAlarmManager;
 import com.sherdle.webtoapp.service.api.response.schedule.Timings;
 import com.sherdle.webtoapp.service.premium.AdMobHandler;
 import com.sherdle.webtoapp.service.premium.PremiumManager;
+import com.sherdle.webtoapp.service.woker.PrayerTimeWorker;
 import com.sherdle.webtoapp.util.ThemeUtils;
 import com.sherdle.webtoapp.utils.Helper;
 import com.sherdle.webtoapp.viewmodel.MainViewModel;
@@ -150,7 +154,7 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback 
         setSupportActionBar(mToolbar);
         locationService = new LocationService(this);
         viewModel = new ViewModelProvider(this).get(MainViewModel.class);
-        sharedPreference = getSharedPreferences("prayer_alarm", MODE_PRIVATE);
+        sharedPreference = getSharedPreferences(Config.PREFS_KEY, MODE_PRIVATE);
 
         mAdapter = new NavigationAdapter(getSupportFragmentManager(), this);
 
@@ -331,39 +335,50 @@ public class MainActivity extends AppCompatActivity implements MenuItemCallback 
 
     private void initSchedule() {
         if (isLocationPermissionGranted()) {
-            Location location = locationService.getLastKnownLocation();
-            if (location != null) {
-                lat = location.getLatitude();
-                lon = location.getLatitude();
-                sharedPreference.edit().putFloat(Config.LAT_KEY, (float) lat).apply();
-                sharedPreference.edit().putFloat(Config.LON_KEY, (float) lon).apply();
-                viewModel.getPrayerSchedule(lat, lon);
-                viewModel.dataStatus.observe(this, dataStatus -> {
-                    switch (dataStatus) {
-                        case LOADING:
-                            Toast.makeText(this, "Sedang mendapatkan data jadwal sholat", Toast.LENGTH_SHORT).show();
-                        case ERROR:
-                            Toast.makeText(this, "Data jadwal sholat gagal didapat", Toast.LENGTH_SHORT).show();
-                        case SUCCESS:
-                            setAlarm();
-                        default:
-                            Log.d("","");
+            locationService.getLastKnownLocation(new LocationCallback() {
+                @Override
+                public void onLocationAvailability(@NonNull LocationAvailability locationAvailability) {
+                    super.onLocationAvailability(locationAvailability);
+                }
+
+                @Override
+                public void onLocationResult(@NonNull LocationResult locationResult) {
+                    super.onLocationResult(locationResult);
+                    if (locationResult != null) {
+                        Location location = locationResult.getLastLocation();
+                        lat = location.getLatitude();
+                        lon = location.getLongitude();
+                        sharedPreference.edit().putFloat(Config.LAT_KEY, (float) lat).apply();
+                        sharedPreference.edit().putFloat(Config.LON_KEY, (float) lon).apply();
+                        viewModel.getPrayerSchedule(lat, lon);
+                        viewModel.dataStatus.observe(MainActivity.this, dataStatus -> {
+                            switch (dataStatus) {
+                                case LOADING:
+                                    Toast.makeText(MainActivity.this, "Sedang mendapatkan data jadwal sholat", Toast.LENGTH_SHORT).show();
+                                case ERROR:
+                                    Toast.makeText(MainActivity.this, "Data jadwal sholat gagal didapat", Toast.LENGTH_SHORT).show();
+                                case SUCCESS:
+                                    setAlarm();
+                                default:
+                                    Log.d("","");
+                            }
+                        });
                     }
-                });
-            }
+                }
+            });
         }
     }
 
     private void setAlarm() {
         Toast.makeText(this, "Data jadwal sholat berhasil didapat", Toast.LENGTH_SHORT).show();
-        viewModel.prayers.observe(this, prayerEntity -> {
-            Helper.setAlarm(MainActivity.this, prayerEntity, 0);
-            Helper.setAlarm(MainActivity.this, prayerEntity, 1);
-            Helper.setAlarm(MainActivity.this, prayerEntity, 2);
-            Helper.setAlarm(MainActivity.this, prayerEntity, 3);
-            Helper.setAlarm(MainActivity.this, prayerEntity, 4);
-            Helper.setAlarm(MainActivity.this, prayerEntity, 5);
-            Helper.setAlarm(MainActivity.this, prayerEntity, 6);
+        viewModel.dataSchedule.observe(this, data -> {
+            long delay = Helper.getDelayNextPrayer(data.first,data.second);
+            WorkManager.getInstance(MainActivity.this).cancelAllWorkByTag(Config.PRAYER_WORKER_TAG);
+            OneTimeWorkRequest workRequest = new OneTimeWorkRequest.Builder(PrayerTimeWorker.class)
+                    .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+                    .addTag(Config.PRAYER_WORKER_TAG)
+                    .build();
+            WorkManager.getInstance(MainActivity.this).enqueue(workRequest);
         });
     }
 
